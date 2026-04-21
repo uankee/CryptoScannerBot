@@ -10,32 +10,40 @@ router = Router()
 
 @router.message(Command("scan"))
 async def cmd_scan(message: Message) -> None:
-    await message.answer("🔍 Сканую ринок (Top-5 монет)...")
+    await message.answer("🔄 Збираю актуальні високоліквідні монети...")
     
-    symbols = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "XRP/USDT", "ADA/USDT"]
-    raw_data = await exchange_manager.fetch_tickers(symbols)
+    # 🔽 динамічний список
+    active_symbols = await exchange_manager.get_common_high_volume_symbols(limit=50)
+    
+    if not active_symbols:
+        await message.answer("❌ Помилка: не вдалося отримати список спільних пар.")
+        return
+
+    await message.answer(f"🔍 Сканую ринок ({len(active_symbols)} монет)...")
+    
+    raw_data = await exchange_manager.fetch_tickers(active_symbols)
     
     results = []
-    for symbol in symbols:
+    for symbol in active_symbols:
         spreads = ArbitrageScanner.calculate_spreads(symbol, raw_data)
         results.extend(spreads)
         
-    # для тесту міняти на --- profitable = [opp for opp in results if opp['net_spread'] > -1] ---
     profitable = [opp for opp in results if opp['net_spread'] > 0]
     
     if not profitable:
         await message.answer("📉 Ринки спокійні. Вигідних арбітражних вікон не знайдено.")
         return
-
-    text = "🚀 **Знайдені можливості:**\n\n"
-    for opp in profitable:
-        text += (f"🔹 **{opp['symbol']}**\n"
-                 f"Купити: {opp['buy_on']} @ {opp['buy_price']}\n"
-                 f"Продати: {opp['sell_on']} @ {opp['sell_price']}\n"
-                 f"Чистий спред: **{opp['net_spread']}%**\n\n")
-                 
-    await message.answer(text)
-    logger.info(f"Відправлено {len(profitable)} сигналів у Telegram.")
+        
+    # 🔽 сортування + топ 10
+    response = "🚀 **Знайдені можливості:**\n\n"
+    for opp in sorted(profitable, key=lambda x: x['net_spread'], reverse=True)[:10]:
+        response += (f"🔹 **{opp['symbol']}**\n"
+                     f"Купити: {opp['buy_on']} @ {opp['buy_price']}\n"
+                     f"Продати: {opp['sell_on']} @ {opp['sell_price']}\n"
+                     f"Чистий спред: **{opp['net_spread']}%**\n\n")
+                     
+    await message.answer(response)
+    logger.info(f"Відправлено {len(profitable)} сигналів.")
 
 @router.message(Command("check"))
 async def cmd_check(message: Message) -> None:

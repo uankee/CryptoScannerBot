@@ -2,6 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     bot_token: str
+    admin_chat_id: int | None = None 
     
     binance_api_key: str | None = None
     binance_secret: str | None = None
