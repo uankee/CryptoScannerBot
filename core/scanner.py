@@ -2,7 +2,12 @@ from typing import Dict, List, Any
 
 class ArbitrageScanner:
     @staticmethod
-    def calculate_spreads(symbol: str, exchange_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def calculate_spreads(
+        symbol: str,
+        exchange_data: Dict[str, Any],
+        trading_fee_pct: float = 0.1,
+        withdrawal_fee_pct: float = 0.1,
+    ) -> List[Dict[str, Any]]:
         prices = []
 
         # Збираємо ціни з усіх бірж
@@ -23,7 +28,8 @@ class ArbitrageScanner:
 
         # Спред
         gross_spread_pct = (max_node['price'] - min_node['price']) / min_node['price'] * 100
-        net_spread_pct = gross_spread_pct - 0.2  # комісії
+        fee_total_pct = trading_fee_pct + withdrawal_fee_pct
+        net_spread_pct = gross_spread_pct - fee_total_pct
 
         return [{
             "symbol": symbol,
@@ -31,5 +37,7 @@ class ArbitrageScanner:
             "buy_price": min_node['price'],
             "sell_on": max_node['exchange'],
             "sell_price": max_node['price'],
+            "gross_spread": round(gross_spread_pct, 2),
+            "fees": round(fee_total_pct, 2),
             "net_spread": round(net_spread_pct, 2)
         }]
