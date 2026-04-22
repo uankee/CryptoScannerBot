@@ -49,10 +49,15 @@ async def background_scanner():
             
             results = []
             for symbol in active_symbols:
-                spreads = ArbitrageScanner.calculate_spreads(symbol, raw_data)
+                spreads = ArbitrageScanner.calculate_spreads(
+                    symbol=symbol,
+                    exchange_data=raw_data,
+                    trading_fee_pct=settings.trading_fee_pct,
+                    withdrawal_fee_pct=settings.withdrawal_fee_pct,
+                )
                 results.extend(spreads)
             
-            profitable = [opp for opp in results if opp['net_spread'] > 1.2]
+            profitable = [opp for opp in results if opp['net_spread'] > settings.profit_threshold]
             
             if profitable:
                 text = "🔔 **АВТО-СКАН: Знайдені можливості!**\n\n"
@@ -60,6 +65,7 @@ async def background_scanner():
                     text += (f"🔹 **{opp['symbol']}**\n"
                              f"Купити: {opp['buy_on']} @ {opp['buy_price']}\n"
                              f"Продати: {opp['sell_on']} @ {opp['sell_price']}\n"
+                             f"Gross: {opp['gross_spread']}% | Комісії: {opp['fees']}%\n"
                              f"Чистий спред: **{opp['net_spread']}%**\n\n")
 
                 await bot.send_message(chat_id=settings.admin_chat_id, text=text)
